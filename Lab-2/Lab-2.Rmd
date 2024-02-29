@@ -1,0 +1,549 @@
+---
+title: "Computer lab 2 block 1"
+author: "Group A7"
+date: "2022-12-05"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+**Group members:Hamza (hammu144), Dinesh (dinsu875) and Umamaheswarababu (umama339)**
+
+**Statement of Contribution : Assignment 1 was mostly done by Dinesh, Assignment 2 was mostly done by Umamaheswarababu and Assignment 3 was mostly done by Hamza **
+
+
+
+## Assignment 1. Explicit regularization
+
+## Divide data randomly into train and test (50/50)
+
+```{r message=FALSE, warning=FALSE}
+
+#Reading the data
+data<-read.csv("tecator.csv")
+
+#Dividing the data(50/50)
+n<-dim(data)[1]
+set.seed(12345)
+id<-sample(1:n,floor(n*0.5))
+train<-data[id,]
+test<-data[-id,]
+
+train_data <- train[,c(2:102)]
+test_data <- test[,c(2:102)]
+
+```
+
+## Question 1: Assume that Fat can be modeled as a linear regression in which absorbance characteristics (Channels) are used as features. Report the underlying probabilistic model, fit the linear regression to the training data and estimate the training and test errors. Comment on the quality of fit and prediction and therefore on the quality of model.
+
+```{r message=FALSE, warning=FALSE}
+
+#Fit the linear regression model
+mod = lm(Fat ~ ., data=train_data)
+summary(mod)
+
+##MSE Train & Test
+train_mse <- mean(mod$residuals^2)
+test_mse <- mean((test_data$Fat - predict(mod,test_data))^2)
+
+list("Train MSEs"=train_mse,"Test MSEs"=test_mse)
+
+```
+ 
+In Linear Regression model, Multiple-R-squared value indicates how much variation is captured by the model. Here, Multiple-R-squared is 1 says that the model explains the larger value of the variance of the model. Hence, the model is good fit.Based on the summary we can find the significant predictor values. From the summary we can see that  some of the variables are less significant features as the ‘p’ value is large for them.
+
+## Question 2: Assume now that Fat can be modeled as a LASSO regression in which all Channels are used as features. Report the cost function that should be optimized in this scenario.
+
+$$argmin[\frac{1}{n}\sum_{i = 1}^{n}(y_{i}-x_{i}\theta_{j})^{2}+\lambda\sum_{j = 1}^{p}|\theta_{j}|]$$
+
+```{r message=FALSE, warning=FALSE}
+#Cost function
+lasso_cost <- function(theta, lambda){
+  y <- train_data[,101]
+  X <-as.matrix( train_data[,1:100] )   
+  n<-nrow(X)
+  theta_new <- theta[1:100]
+  return( (1/n)*( sum((y - X%*%theta_new)^2) +  lambda * sum(theta) ) )
+}
+```
+
+##  Question 3: Fit the LASSO regression model to the training data. Present a plot illustrating how the regression coefficients depend on the log of penalty factor (log𝜆) and interpret this plot. What value of the penalty factor can be chosen if we want to select a model with only three features?
+
+```{r message=FALSE, warning=FALSE}
+
+response <- train_data[,101]
+covariates <- train_data[,c(1:100)]
+
+library(glmnet)
+Lasso_model <- glmnet(x=as.matrix(covariates),y=response , alpha=1,family="gaussian")
+plot(Lasso_model, xvar="lambda", label=TRUE, main= "Regression coefficients depend on the (log lambda) using LASSO")
+
+s<-Lasso_model$df
+t<-Lasso_model$lambda
+a<-data.frame(df=s,lambda=t)
+
+cat(paste("Optimal lambda : ", min(Lasso_model$lambda)))
+ 
+```
+
+In lasso regression, the shrinkage and also the variable selection is done. A different coefficient in the model is represented by a different colored line for each value (feature). It can be observed that as the log value of lambda increases, some of the coefficients get set to zero values. The variable that most influence the model is 41, because it enters the model first,  and it also affects the response variable in a positive manner. The lasso displays a definite trend in the coefficients for log lambda values.
+
+The penalty factor 0.853045182,0.777262999, 0.708213096 can be chosen if we want to select a model with only three features.
+
+## Question 4: Repeat step 3 but fit Ridge instead of the LASSO regression and compare the plots from steps 3 and 4. Conclusions?
+
+```{r message=FALSE, warning=FALSE}
+
+# 1.4 Fit a Ridge regression model
+
+Ridge_model <- glmnet(x=as.matrix(covariates),y=response, alpha=0,family="gaussian")
+plot(Ridge_model, xvar="lambda", label=TRUE, main = "Regression coefficients depend on the (log lambda) using RIDGE")
+
+cat(paste("Optimal lambda : ", min(Ridge_model$lambda)))
+```
+
+In ridge regression, only the beta coefficients are minimized (towards zero) by lambda (shrinkage term) but variable selection is not done. The coefficients get smaller as lambda gets bigger.When lambda effectively equals zero, the sum of squares of the coefficients has reached its maximum value. But in lasso regression, the shrinkage and also the variable selection is done. Both ridge
+regression and the LASSO regression have solutions and are indexed by the continuous parameter λ. Comparing with ridge, the beta values of LASSO with log λ employed have no closed form.
+
+##  Question 5: Use cross-validation with default number of folds to compute the optimal LASSO model. Present a plot showing the dependence of the CV score on log 𝜆and comment how the CV score changes with log 𝜆. Report the optimal 𝜆and how many variables were chosen in this model. Does the information displayed in the plot suggests that the optimal 𝜆 value results in a statistically significantly better prediction than log 𝜆 = −4? Finally, create a scatter plot of the original test versus predicted test values for the model corresponding to optimal lambda and comment whether the model predictions are good.
+
+```{r message=FALSE, warning=FALSE}
+
+cv_Lasso_model=cv.glmnet(x=as.matrix(covariates),y=response,alpha=1,family="gaussian")
+plot(cv_Lasso_model, xvar="lambda", label=TRUE, main = "Dependence of CV score on log (lambda)")
+#coef(cv_Lasso_model, s="lambda.min")
+
+Optimal_lambda<-cv_Lasso_model$lambda.min
+cat(paste("Optimal lambda : ", Optimal_lambda))
+cat(sep = '\n')
+cat(paste("Number of variables chosen by the model : ",length(coef(cv_Lasso_model, s="lambda.min")) - 1))
+```
+
+To find the optimal Lasso model we are using cross validation technique. Here, the red dotted represents the algorithm process for finding significant subset features, number of variables that have been chosen were all 100 variables. The MSE increases when the value of lambda increases.Initially it starts with the stable and increases in the range log lambda.Hence, optimal lambda shows no statistics difference with log lambda=-4.
+
+# create a scatter plot of the original test versus predicted test values for the model corresponding to optimal lambda
+
+```{r message=FALSE, warning=FALSE}
+
+x_test_covariates <- test_data[,1:100]
+cv_fit<-predict(cv_Lasso_model,as.matrix(x_test_covariates))
+
+plot(x=test_data$Fat ,y= cv_fit, main = "Original test vs Predicted test")
+
+```
+
+A scatter plot is used to visualize the linear relationship between the dependent (response) variable and independent (predictor) variables. From the obtained scatter plot, we can see that the test value increases, as well as there is a gradual increase in predicted test. Therefore, in this plot, a best-fitting is clearly obtained through the points. Hence, the model predictions are good.
+
+
+
+## Assignment 2 : Decision trees and logistic regression for bank marketing
+
+**Q1.Import the data to R, remove variable “duration” and divide into training/validation/test as 40/30/30: use data partitioning code specified in Lecture 2a.**
+
+```{r}
+library(tidyr)
+library(tidyverse)
+data<-read.csv("bank-full.csv")
+col_names<-colnames(data)
+col_names<- unlist(str_split(col_names,"[.]"))
+data1<-separate(data,1,col_names,sep = ";")
+
+data1<-data1[,-6]  #removing "balance" which is not present in input variables
+
+data1$age<-as.numeric(data1$age)
+data1$job<-as.factor(data1$job)
+data1$marital<-as.factor(data1$marital)
+data1$education<-as.factor(data1$education)
+data1$default<-as.factor(data1$default)
+data1$housing<-as.factor(data1$housing)
+data1$loan<-as.factor(data1$loan)
+data1$contact<-as.factor(data1$contact)
+data1$month<-as.factor(data1$month)
+data1$day<-as.factor(data1$day)
+data1$duration<-as.numeric(data1$duration)
+data1$campaign<-as.numeric(data1$campaign)
+data1$pdays<-as.numeric(data1$pdays)
+data1$previous<-as.numeric(data1$previous)
+data1$poutcome<-as.factor(data1$poutcome)
+data1$y<-ifelse(data1$y=="yes",1,0) #1 means "yes", 0 means "no"
+data1$y<-as.factor(data1$y)
+
+#removing the column "duration" and loading the data
+cleaned_data<- data1[ , -which(names(data1) %in% c("duration"))]
+
+#splitting the data into training/validation/test
+n=dim(cleaned_data)[1]
+set.seed(12345) 
+id=sample(1:n, floor(n*0.4)) 
+train=cleaned_data[id,] 
+id1=setdiff(1:n, id)
+set.seed(12345) 
+id2=sample(id1, floor(n*0.3)) 
+valid=cleaned_data[id2,]
+id3=setdiff(id1,id2)
+test=cleaned_data[id3,] 
+```
+
+**Q2.Fit decision trees to the training data so that you change the default settings one by one (i.e. not simultaneously):**
+
+```{r}
+library(tree)
+
+#a. Decision Tree with default settings. 
+tree_default<-tree(y~., data = train)
+
+#b. Decision Tree with smallest allowed node size equal to 7000.
+tree_smallest<-tree(y~.,data = train, minsize=7000)
+
+#c. Decision trees minimum deviance to 0.0005.
+tree_min_dev<-tree(y~., data = train,mindev=0.0005)
+
+
+#predictions with training data
+pred_train_default <- predict(tree_default, train, type = "class")
+pred_train_smallest <- predict(tree_smallest, train, type="class")
+pred_train_min_dev <- predict(tree_min_dev, train, type="class")
+
+#prediction with validation data
+pred_valid_default <- predict(tree_default, valid, type = "class")
+pred_valid_smallest <- predict(tree_smallest, valid, type = "class")
+pred_valid_min_dev <- predict(tree_min_dev, valid, type = "class")
+
+#A function to calculate misclassification error
+missclass<- function(X,X1){
+  n=length(X)
+  return(1-sum(diag(table(X,X1)))/n)
+}
+
+#calculating misclassification rate on training data
+
+d1<-missclass(train$y,pred_train_default)
+s1<-missclass(train$y,pred_train_smallest)
+m1<-missclass(train$y,pred_train_min_dev)
+
+#calculating misclassification rate on validation data
+
+d2<-missclass(valid$y,pred_valid_default)
+s2<-missclass(valid$y,pred_valid_smallest)
+m2<-missclass(valid$y,pred_valid_min_dev)
+
+
+misclass_rate<- data.frame("Default"=c(d1,d2),"Smallest_Node"=c(s1,s2),"Min_dev"=c(m1,m2))
+rownames(misclass_rate)<-c("Train","Valid")
+```
+
+Misclassification rates are given below
+
+```{r}
+misclass_rate
+```
+
+From the above results we can say that there is no much difference between misclassification rates of two data sets(train & valid). We can observe that the model with minimum deviance 0.0005 is classifying comparatively better than the models with default settings and smallest node is equal to 7000. 
+
+**Q3.Use training and validation sets to choose the optimal tree depth in the model 2c: study the trees up to 50 leaves. Present a graph of the dependence of deviances for the training and the validation data on the number of leaves and interpret this graph in terms of bias-variance tradeoff. Report the optimal amount of leaves and which variables seem to be most important for decision making in this tree. Interpret the information provided by the tree structure (not everything but most important findings).**
+
+```{r}
+#decision trees minimum deviance to 0.0005.
+tree_min_dev<-tree(y~., data = train,mindev=0.0005)
+
+trainScore <- rep(0,50)
+validScore <- rep(0,50)
+
+for(i in 2:50) {
+  prunedTrain=prune.tree(tree_min_dev,best=i)
+  pred_train=predict(prunedTrain, newdata=valid, type="tree")
+  trainScore[i]=deviance(prunedTrain)
+  validScore[i]=deviance(pred_train)
+}
+plot(2:50, trainScore[2:50], type="b", col="red", ylim=c(4000,12500))
+points(2:50, validScore[2:50], type="b", col="blue")
+
+```
+
+The above graph shows the dependence of deviances for the training and the validation data on the number of leaves for the model with minimum deviance equal to 0.0005. If the number of leaves are less(simple model) then the model has high bias and low variance(underfit) and if the number of leaves are model(more complex model) then the model has low bias and high variance(overfit)
+
+
+Optimal amount of leaves is given by 
+
+```{r}
+optimal_leaves <-which.min(validScore[-1])
+optimal_leaves
+```
+This means this model with 23 leaves gives the least deviance when evaluated with validation data.
+
+
+The most important information provided by the model and most important variables that are used to make decision making are given below
+```{r}
+optimal_tree <- prune.tree(tree_min_dev,best = optimal_leaves)
+summary(optimal_tree)
+```
+The following variables seem to be most important for decision making in the tree.
+
+"poutcome" "month"    "contact"  "day"      "age"      "pdays" "job"      "campaign" "housing"
+
+
+**Q4. Estimate the confusion matrix, accuracy and F1 score for the test data by using the optimal model from step 3. Comment whether the model has a good predictive power and which of the measures (accuracy or F1-score) should be preferred here.**
+
+
+```{r}
+#prediction with test data
+pred_test <-predict(optimal_tree, test, type = "class")
+```
+
+Confusion matrix is given by
+```{r}
+#confusion matrix
+t<-table(true=test$y,pred_test)
+t
+```
+
+Accuracy is given by
+```{r}
+#accuracy
+1-missclass(test$y,pred_test)
+```
+The accuracy of the model with test data is 89.32%
+
+F1 score is given by $F1=\frac{2 . precision . recall}{precision  + recall}$
+```{r}
+recall <-t[2,2]/sum(t[,2])
+precision<- t[2,2]/(sum(t[2,]))
+F1<-2*precision*recall/(precision+recall)
+F1
+```
+Since the data has uneven class distribution, F1 score has to be considered to determine the predictive power of the model. The F1 score of our model is 0.315 which means our classifier has high number of false positives. From this we can say that our model has no good predictive power.
+
+
+**Q5. Perform a decision tree classification of the test data with the following loss matrix,  and report the confusion matrix for the test data. Compare the results with the results from step 4 and discuss how the rates has changed and why.**
+
+```{r}
+library(rpart)
+loss_matrix <-matrix(c(0,5,1,0), nrow = 2)
+tree_test<-rpart(y~., data=train, method="class",parms=list(loss=loss_matrix))
+loss_mat_tree <-predict(tree_test, test, type = "class")
+#Reference:https://stackoverflow.com/questions/49646377/loss-matrix-in-rs-package-rpart
+```
+
+The confusion matrix is given by
+```{r}
+t_loss<-table(true=test$y,predicted=loss_mat_tree)
+t_loss
+```
+
+Accuracy is given by
+```{r}
+#accuracy
+1-missclass(test$y,loss_mat_tree)
+```
+The accuracy of this model is 85.95%
+
+F1 score is given by 
+```{r}
+recall_loss <-t_loss[2,2]/sum(t_loss[,2])
+precision_loss<- t_loss[2,2]/(sum(t_loss[2,]))
+F1_loss<-2*precision_loss*recall_loss/(precision_loss+recall_loss)
+F1_loss
+```
+In comparison with the results in step 4, the accuracy of the model has come down to 85.95% and F1 score is increased to 0.440 from 0.315. Here a loss matrix is used to weight the misclassifications to penalize each misclassification. We penalize false positives five times more than the false negatives which changes the way of splitting such that loss of making incorrect predictions is reduced. 
+
+**Q6. Use the optimal tree and a logistic regression model to classify the test data by using the following principle: Y_hat= yes if p(Y=yes|X)>𝜋,otherwise Y_hat = no  where 𝜋=0.05,0.1,0.15, … 0.9,0.95. Compute the TPR and FPR values for the two models and plot the corresponding ROC curves. Conclusion? Why precision recall curve could be a better option here? **
+
+```{r}
+#optimal tree
+tree_final <- tree(y~., train, mindev=0.0005)
+optimal_tree_final <-prune.tree(tree_final, best=23)
+optimal_pred<-predict(optimal_tree_final, test, type = "vector")
+
+#logistic regression 
+logistic<- glm(y~., data=train, family = "binomial")
+logistic_pred<-predict(logistic, test, type= "response")
+
+#computing TPR and FPR values for different values of threshold(pi)
+TPR_tree<-c()
+FPR_tree<-c()
+TPR_log<-c()
+FPR_log<-c()
+
+j<-1
+
+for (i in seq(0.05,0.95,0.05)){
+  temp_tree<-ifelse(optimal_pred[,2]>i,1,0)
+  temp_log<-ifelse(logistic_pred>i,1,0)
+  c1<-table(test$y,temp_tree)
+  if(dim(c1)[2]>1){
+    TPR_tree[j]<-c1[2,2]/sum(c1[2,])
+    FPR_tree[j]<-c1[1,2]/sum(c1[1,])
+  }
+  c2<-table(test$y,temp_log)
+  if(dim(c2)[2]>1){
+    TPR_log[j]<-c2[2,2]/sum(c2[2,])
+    FPR_log[j]<-c2[1,2]/sum(c2[1,])
+  }
+  j=j+1
+}
+```
+
+Plotting ROC curves
+```{r}
+plot(FPR_tree, TPR_tree, type = "l",col="red", lwd=2,xlab = "False Positive rate",ylab = "True Positive rate", main = "ROC Curves")
+lines(FPR_log,TPR_log, type="l", col="blue",lwd=2)
+legend("topleft",c("Optimal Tree","Logistic Regression"), fill=c("red","blue"))
+```
+
+we can observe that the area under the curve is more for logistic regression model than optimal tree model. So we can conclude that logistic regression is the best model in this case.
+
+Precision-recall curve could be a better option here because the data has unbalanced classes.
+
+
+
+
+## Assignment 3 : Principal components and implicit regularization
+
+
+# Question-1
+
+we load crime data first.
+Then scaled data. we scale it without ViolentCrimesPerPop(101 col) as mentioned. 
+for (PCA) we have to maximize variance of projected data. for that we need sample covarince matrix.
+which is $$ S = \frac{1}{n} \mathbf{X}^T X $$
+with the help of eigenvalue decomposition we will get optimal solution by maximizing lamda. 
+
+$$S	\mu = \mu\lambda$$
+After getting sample covariance matrix we need to find eigen values and eigen vector which we will find with the help of eigen() function.
+
+In above matrix each value in diagonal represent eigenvalue.
+so we have to check for at least 95% of variance of data for that we will check each eigenvalue of matrix.
+
+
+```{r}
+crime_data <- read.csv("communities.csv")
+sacled_data <- scale(crime_data[ ,-101])
+s_c_matrix <- cov(sacled_data )
+eigen <- eigen(s_c_matrix)
+
+
+e_values <- eigen$values
+
+report <-  function(e_values){
+  vs <- 0
+  counter = 0
+  for(i in e_values){
+    
+    vs = vs + (i / sum(e_values))
+    counter = counter + 1
+    
+    if(vs > 0.95){
+      break
+    }
+    
+  }
+  
+  
+   comp.1 = e_values[1]/sum(e_values)
+   comp.2 = e_values[2]/sum(e_values)
+  res <- list("Total componets" = counter,  "proportion of first componenet" = comp.1, 
+              "proportion of second componenet" = comp.2)
+  
+  return(res)
+}
+
+
+report(e_values)
+
+
+
+```
+Above list gives us total components having at least 95% variance and proportion for first two components we were asked for.
+
+
+# Question-2
+
+Now we did analysis using princomp() function and we plot it. we use loading as it holds all the information for commutative and proportion variance which we used for analysis.
+we take first component as we asked in assignment.
+from plot we get variation of component one between (-0.15 to 0.15)
+we selected first five absoulte feature of comp.1
+
+which are:
+
+# state:US
+# population:population for community
+# householdsize:mean people per household
+# racepctblack:percentage of population that is african american
+# racePctWhite:percentage of population that is caucasian 
+
+These are attributes description which we collect from link.
+from above attributes of first component we can say that they have common thing in them is population
+because of increasing population and state not able to manage them as we can see that increase of population not ability of government to manage things leads to cause of crime.
+Maybe increase of crime is because of increase of population.
+
+we get data frame to draw plot between first two component and compared their score with eachother.
+
+```{r}
+repaet_pca <- princomp(sacled_data)
+
+comp_1 <- repaet_pca$loadings[, "Comp.1"]
+plot(comp_1)
+
+
+obs <- abs(comp_1)[1:5]
+obs
+
+pc_score <- as.data.frame(repaet_pca$scores[, 1:2]) 
+ViolentCrimesPerPop = crime_data[ ,101]
+
+
+library(ggplot2)
+ggplot(pc_score, aes(Comp.1, Comp.2))+
+  geom_point(aes(color = ViolentCrimesPerPop))
+
+
+```
+
+from above plot we can see that values of component 2 is variation between -10 to 0 and variation of component 1 is -10 to 15 so we can say that high score of crime is in component 1 but on other hand crime score of second component is less.
+
+
+# Question-3
+
+We have asked with dividing data into train and test then scale we did it with the help of set seed by fixing data and then scaled it.
+
+```{r}
+n=dim(crime_data)[1]
+set.seed(12345)
+id=sample(1:n, floor(n*0.5))
+test=crime_data[id,]
+scale_test = as.data.frame(scale(test))
+
+id1=setdiff(1:n, id)
+id2=sample(id1, floor(n*0.5))
+train=crime_data[id2,]
+scale_train = as.data.frame(scale(train))
+
+lm_m <- lm(ViolentCrimesPerPop ~ ., data = scale_train)
+
+predicted_data <- predict(lm_m, scale_train)
+actual_data <- crime_data[,"ViolentCrimesPerPop"]
+n <- length(crime_data[,"ViolentCrimesPerPop"])
+mse_train <- sum((actual_data - predicted_data) ^2)/n
+
+predicted_data <- predict(lm_m, scale_test)
+actual_data <- crime_data[,"ViolentCrimesPerPop"]
+n <- length(crime_data[,"ViolentCrimesPerPop"])
+mse_test <- sum((actual_data - predicted_data) ^2)/n
+
+mse_test 
+mse_train
+
+```
+we used trained scaled data as we asked and took ViolentCrimesPerPop as target variable with the help of this we made a model and then we asked for MSE for both test and train which we calculated with the help of taking mean of square difference of actual and predicted data.
+above two values represent required results.
+
+# Question-4
+
+
+
+
+## Appendix
+```{r, ref.label=knitr::all_labels(), echo=TRUE, eval=FALSE}
+```
+
