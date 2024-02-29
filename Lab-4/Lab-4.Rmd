@@ -1,0 +1,468 @@
+---
+title: "Computer Lab Block 2"
+author: "Group A7"
+date: "2022-12-09"
+output: html_document
+---
+
+```{r setup, warning=FALSE, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+**Group members:Hamza (hammu144), Dinesh (dinsu875) and Umamaheswarababu (umama339)**
+
+**Statement of Contribution : Assignment 1 was mostly done by Umamaheswarababu, Assignment 2 was mostly done by Dinesh and Hamza has contributed to both the assignments **
+
+
+
+# Assignment-1 :  ENSEMBLE METHODS
+
+Creating training data and test data
+```{r}
+#training data
+x1<-runif(100)
+x2<-runif(100)
+trdata<-cbind(x1,x2)
+y<-as.numeric(x1<x2)
+trlabels<-as.factor(y)
+```
+
+```{r}
+#test data
+set.seed(1234)
+x1<-runif(1000)
+x2<-runif(1000)
+tedata<-cbind(x1,x2)
+y1<-as.numeric(x1<x2)
+telabels<-as.factor(y1)
+y<-telabels
+tedata<-data.frame(x1,x2,y)
+plot(x1,x2,col=(y1+1))
+```
+
+
+
+**Q1. Repeat the procedure above for 1000 training datasets of size 100 and report the mean and variance of the misclassification errors. In other words, create 1000 training datasets of size 100, learn a random forest from each dataset, and compute the misclassification error in the same test dataset of size 1000. Report results for when the random forest has 1, 10 and 100 trees.**
+
+```{r}
+#Creating 1000 training datasets and storing them in a list
+train_sets_1<-list()
+for (i in 1:1000){
+  x1<-runif(100)
+  x2<-runif(100)
+  trdata<-cbind(x1,x2)
+  y<-as.numeric(x1<x2)
+  trlabels<-as.factor(y)
+  y<-trlabels
+  trdata<-data.frame(x1,x2,y)
+  train_sets_1[[i]]<-trdata
+}
+
+#test data
+set.seed(1234)
+x1<-runif(1000)
+x2<-runif(1000)
+tedata<-cbind(x1,x2)
+y1<-as.numeric(x1<x2)
+telabels<-as.factor(y1)
+y<-telabels
+tedata<-data.frame(x1,x2,y)
+
+
+#A function to calculate misclassification error
+missclass<- function(X,X1){
+  n=length(X)
+  return(1-sum(diag(table(X,X1)))/n)
+}
+
+#importing "randomForest" package
+library(randomForest)
+
+#three vectors to store misclassification errors for different trees
+misclass_1<-c()
+misclass_10<-c()
+misclass_100<-c()
+
+#learning a random forest with 1, 10 and 100 trees
+for (i in train_sets_1){
+  random_forest_1<-randomForest(y~., data=i, ntree=1, nodesize=25, keep.forest=TRUE)
+  random_forest_10<-randomForest(y~., data=i, ntree=10, nodesize=25, keep.forest=TRUE)
+  random_forest_100<-randomForest(y~., data=i, ntree=100, nodesize=25, keep.forest=TRUE)
+  
+  #computing misclassification errors with test data
+  prediction_1<-predict(random_forest_1, newdata=tedata)
+  misclass<-missclass(tedata$y,prediction_1)
+  misclass_1<-c(misclass_1,misclass) #misclass errors for tree_1
+  
+  prediction_10<-predict(random_forest_10, newdata=tedata)
+  misclass<-missclass(tedata$y,prediction_10)
+  misclass_10<-c(misclass_10,misclass) #misclass errors for tree_10
+  
+  prediction_100<-predict(random_forest_100, newdata=tedata)
+  misclass<-missclass(tedata$y,prediction_100)
+  misclass_100<-c(misclass_100,misclass) #misclass errors for tree_100
+}
+
+#computing mean of misclassification errors
+Mean<-c(mean(misclass_1),mean(misclass_10),mean(misclass_100))
+
+#computing variance of misclassification errors
+Variance<-c(var(misclass_1),var(misclass_10),var(misclass_100))
+
+#storing mean and variance in a dataframe
+df<-data.frame(Mean, Variance)
+rownames(df)<-c("tree_1","tree_10","tree_100")
+```
+
+The mean and variance of the misclassification errors is given by
+```{r}
+df
+```
+
+
+
+**Q2. Repeat the exercise above but this time use the condition (x1<0.5) instead of (x1<x2) when producing the training and test datasets.**
+
+Creating training and test data
+```{r}
+#Creating 1000 training datasets and storing them in a list
+train_sets_1<-list()
+for (i in 1:1000){
+  x1<-runif(100)
+  x2<-runif(100)
+  trdata<-cbind(x1,x2)
+  y<-as.numeric(x1<0.5)
+  trlabels<-as.factor(y)
+  y<-trlabels
+  trdata<-data.frame(x1,x2,y)
+  train_sets_1[[i]]<-trdata
+}
+
+#test data
+set.seed(1234)
+x1<-runif(1000)
+x2<-runif(1000)
+tedata<-cbind(x1,x2)
+y1<-as.numeric(x1<0.5)
+telabels<-as.factor(y1)
+y<-telabels
+tedata<-data.frame(x1,x2,y)
+plot(x1,x2,col=(y1+1))
+```
+
+Random forest models and computation of misclassification errors
+```{r}
+#three vectors to store misclassification errors for different trees
+misclass_1<-c()
+misclass_10<-c()
+misclass_100<-c()
+
+#learning a random forest with 1, 10 and 100 trees
+for (i in train_sets_1){
+  random_forest_1<-randomForest(y~., data=i, ntree=1, nodesize=25, keep.forest=TRUE)
+  random_forest_10<-randomForest(y~., data=i, ntree=10, nodesize=25, keep.forest=TRUE)
+  random_forest_100<-randomForest(y~., data=i, ntree=100, nodesize=25, keep.forest=TRUE)
+  
+  #computing misclassification errors with test data
+  prediction_1<-predict(random_forest_1, newdata=tedata)
+  misclass<-missclass(tedata$y,prediction_1)
+  misclass_1<-c(misclass_1,misclass) #misclass errors for tree_1
+  
+  prediction_10<-predict(random_forest_10, newdata=tedata)
+  misclass<-missclass(tedata$y,prediction_10)
+  misclass_10<-c(misclass_10,misclass) #misclass errors for tree_10
+  
+  prediction_100<-predict(random_forest_100, newdata=tedata)
+  misclass<-missclass(tedata$y,prediction_100)
+  misclass_100<-c(misclass_100,misclass) #misclass errors for tree_100
+}
+
+#computing mean of misclassification errors
+Mean<-c(mean(misclass_1),mean(misclass_10),mean(misclass_100))
+
+#computing variance of misclassification errors
+Variance<-c(var(misclass_1),var(misclass_10),var(misclass_100))
+
+#storing mean and variance in a dataframe
+df<-data.frame(Mean, Variance)
+rownames(df)<-c("tree_1","tree_10","tree_100")
+```
+
+The mean and variance of the misclassification errors is given by
+```{r}
+df
+```
+
+
+
+**Q3. Repeat the exercise above but this time use the condition ((x1<0.5 & x2<0.5) | (x1>0.5 & x2>0.5)) instead of (x1<x2) when producing the training and test datasets. Unlike above, use nodesize = 12 for this exercise.**
+
+Creating training and test data
+```{r}
+#Creating 1000 training datasets and storing them in a list
+train_sets_1<-list()
+for (i in 1:1000){
+  x1<-runif(100)
+  x2<-runif(100)
+  trdata<-cbind(x1,x2)
+  y<-as.numeric((x1<0.5 & x2<0.5)|(x1>0.5 & x2>0.5))
+  trlabels<-as.factor(y)
+  y<-trlabels
+  trdata<-data.frame(x1,x2,y)
+  train_sets_1[[i]]<-trdata
+}
+
+#test data
+set.seed(1234)
+x1<-runif(1000)
+x2<-runif(1000)
+tedata<-cbind(x1,x2)
+y1<-as.numeric((x1<0.5 & x2<0.5)|(x1>0.5 & x2>0.5))
+telabels<-as.factor(y1)
+y<-telabels
+tedata<-data.frame(x1,x2,y)
+plot(x1,x2,col=(y1+1))
+```
+
+Random forest models and computation of misclassification errors
+```{r}
+#three vectors to store misclassification errors for different trees
+misclass_1<-c()
+misclass_10<-c()
+misclass_100<-c()
+
+#learning a random forest with 1, 10 and 100 trees
+for (i in train_sets_1){
+  random_forest_1<-randomForest(y~., data=i, ntree=1, nodesize=12, keep.forest=TRUE)
+  random_forest_10<-randomForest(y~., data=i, ntree=10, nodesize=12, keep.forest=TRUE)
+  random_forest_100<-randomForest(y~., data=i, ntree=100, nodesize=12, keep.forest=TRUE)
+  
+  #computing misclassification errors with test data
+  prediction_1<-predict(random_forest_1, newdata=tedata)
+  misclass<-missclass(tedata$y,prediction_1)
+  misclass_1<-c(misclass_1,misclass) #misclass errors for tree_1
+  
+  prediction_10<-predict(random_forest_10, newdata=tedata)
+  misclass<-missclass(tedata$y,prediction_10)
+  misclass_10<-c(misclass_10,misclass) #misclass errors for tree_10
+  
+  prediction_100<-predict(random_forest_100, newdata=tedata)
+  misclass<-missclass(tedata$y,prediction_100)
+  misclass_100<-c(misclass_100,misclass) #misclass errors for tree_100
+}
+
+#computing mean of misclassification errors
+Mean<-c(mean(misclass_1),mean(misclass_10),mean(misclass_100))
+
+#computing variance of misclassification errors
+Variance<-c(var(misclass_1),var(misclass_10),var(misclass_100))
+
+#storing mean and variance in a dataframe
+df<-data.frame(Mean, Variance)
+rownames(df)<-c("tree_1","tree_10","tree_100")
+```
+
+The mean and variance of the misclassification errors is given by
+```{r}
+df
+```
+
+**Q4. Answer the following questions:**
+
+**– What happens with the mean error rate when the number of trees in the random forest grows? Why?**
+
+The mean error rate is decreasing with increase in number of trees in random forest. When ensemble members are less, the misclassification rate is high and as the number of ensemble members increases, the model becomes better. More ensemble members does not make the model more flexible but it reduces only the variance. 
+
+**– The third dataset represents a slightly more complicated classification problem than the first one. Still, you should get better performance for it when using sufficient trees in the random forest. Explain why you get better performance**
+
+The idea behind Random Forests is to inject additional randomness when construction each tree. We pick random subset of features for constructing each ensemble tree. If the number of features is more and number of ensembles is less then there is a chance that some of the features has less contribution to the construction of model which leads to reduction of prediction power of the model. But for the third data set in our case, it has only two features (x1 and x2) which is very smaller than number of ensemble trees(12). As we know the variance decreases with number of ensembles increases, this model has great predictive power which leads to better performance.  
+
+
+
+
+# Assignment 2 : MIXTURE MODELS
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+# Assignment 2
+```
+
+Our Task is to implement the EM algorithm for Bernoulli mixture model. Please use the
+R template below to solve the assignment. Then, use your implementation to show what
+happens when your mixture model has too few and too many clusters, i.e. set M = 2,3,4 and
+compare results.
+
+A Bernoulli mixture model is
+
+$$p(x) = \sum_{m=1}^{M} \pi_{m} Bern(x|\mu_{m})$$
+
+where $x=(x_1, . . . ,x_D) $ is a D-dimensional binary random vector, $\pi_{m}$ = p(y = m) and
+
+$$Bernoulli(x|\mu_{m}) = \prod_{d=1}^{D}\mu_{m,d}^{xd}(1-\mu_{m,d})^{(1-x_{d})} $$
+
+**E-step : Compute p(w|X) for w matrix**
+
+$$p(w_{nm}|x_{n}, \mu, \pi) = \frac{\pi_{m}p(x_{n} |\mu_{m})}{\sum_{m}\pi_{m}p(x_{n} | \mu_{m})}$$
+
+**Log likelihood computation**
+The log likelihood function is
+
+$$logp(\{x_{n},w_{n}\}|\mu, \pi) = \sum_{n}logp(x_{n}, w_{n}|\mu, \pi) = \sum_{n}log\prod_{m}[\pi_{m}\prod_{d}\mu_{md}^{x_{nd}}(1-\mu_{md}^{(1-x_{nd})})]^{z_{nm}}$$
+**M-step: ML parameter estimation from the data and fractional component assignments**
+$$\pi_{m}^{ML} = \frac{\sum_{n}p(w_{nm}|x_{n}, \mu, \pi)}{n}$$
+$$\mu_{md}^{ML} = \frac{\sum_{n}x_{ni}p(w_{nm}|x_{n}, \mu, \pi)}{\sum_{n}p(w_{nm}|x_{n}, \mu, \pi)} $$
+Finally, the EM algorithm generates the plotting of observed data log-likelihood as a function of iteration number.EM algorithm has the property to increase the likelihood at each step. 
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+set.seed(1234567890)
+max_it <- 100 # max number of EM iterations
+min_change <- 0.1 # min change in log lik between two consecutive iterations
+n=1000 # number of training points
+D=10 # number of dimensions
+x <- matrix(nrow=n, ncol=D) # training data
+true_pi <- vector(length = 3) # true mixing coefficients
+true_mu <- matrix(nrow=3, ncol=D) # true conditional distributions
+true_pi=c(1/3, 1/3, 1/3)
+true_mu[1,]=c(0.5,0.6,0.4,0.7,0.3,0.8,0.2,0.9,0.1,1)
+true_mu[2,]=c(0.5,0.4,0.6,0.3,0.7,0.2,0.8,0.1,0.9,0)
+true_mu[3,]=c(0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5)
+
+plot(true_mu[1,], type="o", col="blue", ylim=c(0,1), 
+     main="True Mu", xlab ="D_Dimensions", ylab = "mu Values")
+points(true_mu[2,], type="o", col="red")
+points(true_mu[3,], type="o", col="green")
+
+# Producing the training data
+for(i in 1:n) {
+  m <- sample(1:3,1,prob=true_pi)
+  for(d in 1:D) {
+    x[i,d] <- rbinom(1,1,true_mu[m,d])
+  } 
+}
+
+Mixture_Model <- function(M_clusters){
+  M=M_clusters # number of clusters
+  w <- matrix(nrow=n, ncol=M) # weights
+  pi <- vector(length = M) # mixing coefficients
+  mu <- matrix(nrow=M, ncol=D) # conditional distributions
+  llik <- vector(length = max_it) # log likelihood of the EM iterations
+  
+  # Random initialization of the parameters
+  pi <- runif(M,0.49,0.51)
+  pi <- pi / sum(pi)
+  
+  for(a in 1:M) {
+    mu[a,] <- runif(D,0.49,0.51)
+  }
+  pi
+  mu
+  for(it in 1:max_it)
+  {
+    # E-step: Computation of the weights
+    for (d in 1:n)
+    {
+      p_x <- 0
+      for (m in 1:M)
+      { 
+        #Bernouilli distributions
+        p_x = p_x+ pi[m]*prod(((mu[m,]^x[d,])*((1-mu[m,])^(1-x[d,]))))
+      }
+      for (m in 1:M)
+      {
+        w[d,m] = pi[m]*prod(((mu[m,]^x[d,])*((1-mu[m,])^(1-x[d,])))) / p_x  
+      }
+    }
+    #Log likelihood computation.
+    log_L <- matrix(0, nrow =1000, ncol = M)
+    llik[it] <-0
+    bern_MM <- 0
+    for(d in 1:n)
+    {
+      for (m in 1:M)
+      {
+        bern_MM <- prod( ((mu[m,]^x[d,])*((1-mu[m,])^(1-x[d,]))))
+        log_L[d,m] <- pi[m] * bern_MM
+      }
+      llik[it]<- sum(log(rowSums(log_L)))
+    }
+    cat("iteration: ", it, "log likelihood: ", llik[it], "\n")
+    flush.console()
+    
+    # Stop if the log likelihood has not changed significantly
+    if (it > 1)
+    {
+      if (llik[it]-llik[it-1] < min_change)
+      {
+        if(M==2)
+        {
+          plot(mu[1,], type="o", col="blue", ylim=c(0,1),
+               main="Plot for new mu values when cluster 2",xlab ="D_Dimensions",ylab = "mu Values")
+          points(mu[2,], type="o", col="red")
+        }
+        if(M==3)
+        {
+          plot(mu[1,], type="o", col="blue", ylim=c(0,1),
+               main="Plot for new mu values when cluster 3",xlab ="D_Dimensions",ylab = "mu Values")
+          points(mu[2,], type="o", col="red")
+          points(mu[3,], type="o", col="green")
+        }
+        if(M==4)
+        {
+          plot(mu[1,], type="o", col="blue", ylim=c(0,1),
+               main="Plot for new mu values when cluster 4",xlab ="D_Dimensions",ylab = "mu Values")
+          points(mu[2,], type="o", col="red")
+          points(mu[3,], type="o", col="green")
+          points(mu[4,], type="o", col="yellow")
+        }
+        break
+      }
+    }
+    #M-step: ML parameter estimation from the data and fractional component assignments
+    mu <- (t(w) %*% x) /colSums(w)
+    pi <- colSums(w)/n
+  }
+  cat("PI : " , pi )
+  cat("\n")
+  cat("MU : ") 
+  print(mu)
+  plot(llik[1:it], type="o", main="Likelihood Plot for clusters",xlab ="Iterations",ylab = "Likelihood")
+}
+
+```
+
+## For M=2 :
+
+```{r, echo=FALSE}
+# For M=2
+Mixture_Model(2)
+```
+
+The plot above is generated using M = 2,so the number of clusters are assumed to be 2.After 12 iterations, the EM algorithm stops with a log likelihood of -6362.897, which considerably increases until it meets the stopping criterion condition.Thus showing that there hasn't been a significant change in the log likelihood.When the clusters are too less, this may lead to the under fitting. Therefore, we expect the model to be under fitted.
+
+## For M=3 :
+
+```{r, echo=FALSE}
+# For M=3
+Mixture_Model(3)
+```
+
+The plot above is generated using M = 3,so the number of clusters are assumed to be 3. It has been observed that, it is pretty similar to the true ones where the uniform one which has been influenced by the other two distributions.After 46 iterations, the EM algorithm stops with a log likelihood of -6345.431, which considerably increases until it meets the stopping criterion condition.The values of pi and mu coverges the true values and it is close to value of true pi i.e,(true pi = 1/3).
+
+## For M=4 :
+
+```{r, echo=FALSE}
+# For M=4
+Mixture_Model(4)
+```
+
+The plot above is generated using M = 4,so the number of clusters are assumed to be 4.The green and yellow curves are highly irregular and do not resemble the true distributions. However, taking the average of these two curves would approximate the Bernoulli distribution with uniform parameters quite well. This suggests that while the individual curves may be chaotic, they can still be useful in estimating the underlying distribution.
+
+After 32 iterations, the EM algorithm stops with a log likelihood of -6342.668 , which considerably increases until it meets the stopping criterion condition.When there are too many factors taken into account, it can cause the model to be overly specific to the training data and not generalize well to new examples. This is known as overfitting. In the case of overfitting, the model may capture random noise in the data rather than the underlying patterns. The estimated values produced by the model may be very different from the true values, particularly when using a large number of clusters. In such cases, the EM algorithm may have difficulty distinguishing between the different distributions in the data.
+
+
+
+
+
+
+# Appendix
+```{r, ref.label=knitr::all_labels(), echo=TRUE, eval=FALSE}
+```
+
