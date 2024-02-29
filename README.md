@@ -1,8 +1,7 @@
 # Machine Learning
 
-This repository showcases lab assignments completed in Machine Learning course. 
 
-**Welcome!** This repository contains my lab assignments from the **Computational Statistics** course. All the labs are done in collaboration with my classmates Dinesh Sundaramoorthy and Hamza Munir since it is group task.
+**Welcome!** This repository contains my lab assignments from the **Machine Learning** course. All the labs are done in collaboration with my classmates Dinesh Sundaramoorthy and Hamza Munir since it is group task.
 
 **What will you find here?**
 
